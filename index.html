@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>StaffPay Manager</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+    body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-28 selection:bg-indigo-500 selection:text-white">
+
+  <!-- TOP BAR -->
+  <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-3 sm:px-6">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <i data-lucide="wallet" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
+            StaffPay <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 font-semibold uppercase tracking-wider">Home</span>
+          </h1>
+          <p class="text-[11px] text-slate-400">Payroll, Loans & Instant UPI</p>
+        </div>
+      </div>
+
+      <!-- Sync & Config -->
+      <div class="flex items-center space-x-2">
+        <button onclick="syncWithGoogleSheet(true)" id="syncBadge" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+          <span id="syncDot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+          <span id="syncText">Sync</span>
+        </button>
+        <button onclick="openConfigModal()" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+          <i data-lucide="settings" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 py-5 space-y-5">
+
+    <!-- MONTH SELECTOR & KPI SUMMARY -->
+    <section class="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-lg shadow-black/20">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+        <div>
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Period</span>
+          <div class="flex items-center gap-2 mt-1">
+            <select id="selectedMonth" onchange="onMonthChange()" class="bg-slate-950 border border-slate-700 text-white text-sm font-semibold rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="Jan-2026">January 2026</option>
+              <option value="Feb-2026">February 2026</option>
+              <option value="Mar-2026">March 2026</option>
+              <option value="Apr-2026">April 2026</option>
+              <option value="May-2026">May 2026</option>
+              <option value="Jun-2026">June 2026</option>
+              <option value="Jul-2026">July 2026</option>
+              <option value="Aug-2026" selected>August 2026</option>
+              <option value="Sep-2026">September 2026</option>
+              <option value="Oct-2026">October 2026</option>
+              <option value="Nov-2026">November 2026</option>
+              <option value="Dec-2026">December 2026</option>
+            </select>
+            <span id="daysCountBadge" class="text-xs text-slate-500 font-medium">(31 Days)</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap">
+          <button onclick="openNewStaffModal()" class="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition">
+            <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> Add Staff
+          </button>
+          <button onclick="openNewExpenseModal()" class="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-md shadow-indigo-600/30">
+            <i data-lucide="receipt" class="w-3.5 h-3.5"></i> Log Bill
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI Grid -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+        <div class="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-3.5">
+          <span class="text-[11px] font-medium text-slate-400">Total Net Salary</span>
+          <div id="metricTotal" class="text-lg sm:text-xl font-black text-white mt-0.5">₹0</div>
+          <span id="metricStaffCount" class="text-[10px] text-slate-500">0 Staff Active</span>
+        </div>
+        <div class="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-3.5">
+          <span class="text-[11px] font-medium text-emerald-400">Paid So Far</span>
+          <div id="metricPaid" class="text-lg sm:text-xl font-black text-emerald-400 mt-0.5">₹0</div>
+          <span id="metricPaidCount" class="text-[10px] text-slate-500">0 Settled</span>
+        </div>
+        <div class="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-3.5">
+          <span class="text-[11px] font-medium text-amber-400">Pending Outflow</span>
+          <div id="metricPending" class="text-lg sm:text-xl font-black text-amber-400 mt-0.5">₹0</div>
+          <span id="metricPendingCount" class="text-[10px] text-slate-500">0 Awaiting Payout</span>
+        </div>
+        <div class="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-3.5">
+          <span class="text-[11px] font-medium text-indigo-400">Mid-Month Bills</span>
+          <div id="metricExpenses" class="text-lg sm:text-xl font-black text-indigo-400 mt-0.5">₹0</div>
+          <span class="text-[10px] text-slate-500">Ad-hoc expenses</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- NAVIGATION TABS -->
+    <div class="flex space-x-2 border-b border-slate-800 pb-2 overflow-x-auto no-scrollbar">
+      <button onclick="switchTab('payroll')" id="tab-btn-payroll" class="tab-btn active px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-indigo-600 text-white shadow-md shadow-indigo-600/20">
+        <i data-lucide="layers" class="w-4 h-4"></i> Monthly Payroll
+      </button>
+      <button onclick="switchTab('expenses')" id="tab-btn-expenses" class="tab-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-slate-900 text-slate-300 hover:bg-slate-800">
+        <i data-lucide="receipt" class="w-4 h-4"></i> Ancillary Bills
+      </button>
+      <button onclick="switchTab('loans')" id="tab-btn-loans" class="tab-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-slate-900 text-slate-300 hover:bg-slate-800">
+        <i data-lucide="credit-card" class="w-4 h-4"></i> Loans & Advances
+      </button>
+      <button onclick="switchTab('staff')" id="tab-btn-staff" class="tab-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-slate-900 text-slate-300 hover:bg-slate-800">
+        <i data-lucide="users" class="w-4 h-4"></i> Staff Statements & Roster
+      </button>
+    </div>
+
+    <!-- TAB 1: MONTHLY PAYROLL -->
+    <section id="tab-payroll" class="tab-content space-y-4">
+      <div id="payrollCardsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </section>
+
+    <!-- TAB 2: ANCILLARY EXPENSES -->
+    <section id="tab-expenses" class="tab-content hidden space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold text-slate-200">Ad-Hoc Staff Expenses & Reimbursements</h3>
+        <button onclick="openNewExpenseModal()" class="text-xs font-semibold px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow">
+          + Add New Bill
+        </button>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-300">
+            <thead class="bg-slate-950 text-slate-400 uppercase font-semibold border-b border-slate-800">
+              <tr>
+                <th class="py-3 px-4">Date</th>
+                <th class="py-3 px-4">Staff Member</th>
+                <th class="py-3 px-4">Category / Note</th>
+                <th class="py-3 px-4">Amount</th>
+                <th class="py-3 px-4">Settlement Route</th>
+                <th class="py-3 px-4">Status</th>
+                <th class="py-3 px-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="expensesTableBody" class="divide-y divide-slate-800/60"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: LOANS -->
+    <section id="tab-loans" class="tab-content hidden space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-bold text-slate-200">Staff Loan & Advance Ledgers</h3>
+          <p class="text-xs text-slate-400">Click on any loan card to edit principal, change EMI, or close the loan</p>
+        </div>
+        <button onclick="openNewLoanModal()" class="text-xs font-semibold px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow flex items-center gap-1.5">
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i> Issue Advance
+        </button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="loansContainer"></div>
+    </section>
+
+    <!-- TAB 4: STAFF STATEMENTS & MASTER DIRECTORY -->
+    <section id="tab-staff" class="tab-content hidden space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-bold text-slate-200">Staff Directory & Individual Statements</h3>
+          <p class="text-xs text-slate-400">View complete month-by-month payment histories, paid dates, and ad-hoc spend</p>
+        </div>
+        <button onclick="openNewStaffModal()" class="text-xs font-semibold px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow flex items-center gap-1.5">
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i> Add Staff
+        </button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="staffContainer"></div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: INDIVIDUAL STAFF CONSOLIDATED STATEMENT -->
+  <div id="statementModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-3xl w-full max-h-[92vh] flex flex-col shadow-2xl relative overflow-hidden">
+      <!-- Header -->
+      <div class="p-5 border-b border-slate-800 flex items-start justify-between bg-slate-950/60">
+        <div class="flex items-center space-x-3.5">
+          <div id="stmtAvatar" class="w-12 h-12 rounded-2xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-black text-lg border border-indigo-500/30">
+            R
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 id="stmtName" class="text-lg font-bold text-white">Ramesh Kumar</h3>
+              <span id="stmtRole" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300">Driver</span>
+              <span id="stmtStatusBadge" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">Active</span>
+            </div>
+            <p id="stmtVpa" class="text-xs text-slate-400 font-mono mt-0.5">ramesh@okhdfcbank</p>
+          </div>
+        </div>
+        <button onclick="closeStatementModal()" class="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Scrollable Body -->
+      <div class="p-5 overflow-y-auto space-y-6 no-scrollbar">
+        
+        <!-- Summary Strip -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="bg-slate-950 p-3 rounded-2xl border border-slate-800">
+            <span class="text-[10px] font-semibold text-slate-500 uppercase">Base Salary</span>
+            <div id="stmtBaseSal" class="text-base font-bold text-white mt-0.5">₹0</div>
+          </div>
+          <div class="bg-slate-950 p-3 rounded-2xl border border-slate-800">
+            <span class="text-[10px] font-semibold text-slate-500 uppercase">Total Salary Paid (YTD)</span>
+            <div id="stmtTotalSalaryPaid" class="text-base font-bold text-emerald-400 mt-0.5">₹0</div>
+          </div>
+          <div class="bg-slate-950 p-3 rounded-2xl border border-slate-800">
+            <span class="text-[10px] font-semibold text-slate-500 uppercase">Ad-Hoc Reimbursements</span>
+            <div id="stmtTotalReimb" class="text-base font-bold text-indigo-400 mt-0.5">₹0</div>
+          </div>
+          <div class="bg-slate-950 p-3 rounded-2xl border border-slate-800">
+            <span class="text-[10px] font-semibold text-slate-500 uppercase">Loan Outstanding</span>
+            <div id="stmtLoanDue" class="text-base font-bold text-rose-400 mt-0.5">₹0</div>
+          </div>
+        </div>
+
+        <!-- Section 1: Month-by-Month Payroll History -->
+        <div class="space-y-2.5">
+          <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="calendar" class="w-3.5 h-3.5 text-indigo-400"></i> Monthly Salary History
+          </h4>
+          <div class="border border-slate-800 rounded-2xl overflow-hidden bg-slate-950">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-slate-900 text-slate-400 uppercase font-semibold border-b border-slate-800 text-[10px]">
+                  <tr>
+                    <th class="py-2.5 px-3">Month</th>
+                    <th class="py-2.5 px-3">Worked / Leaves</th>
+                    <th class="py-2.5 px-3">Deductions</th>
+                    <th class="py-2.5 px-3">Net Paid</th>
+                    <th class="py-2.5 px-3">Mode</th>
+                    <th class="py-2.5 px-3">Status & Date</th>
+                  </tr>
+                </thead>
+                <tbody id="stmtPayrollTbody" class="divide-y divide-slate-800/60"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Ad-Hoc / Mid-Month Bills -->
+        <div class="space-y-2.5">
+          <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="receipt" class="w-3.5 h-3.5 text-indigo-400"></i> Ancillary Expenses & Payouts
+          </h4>
+          <div class="border border-slate-800 rounded-2xl overflow-hidden bg-slate-950">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-slate-900 text-slate-400 uppercase font-semibold border-b border-slate-800 text-[10px]">
+                  <tr>
+                    <th class="py-2.5 px-3">Date</th>
+                    <th class="py-2.5 px-3">Category / Note</th>
+                    <th class="py-2.5 px-3">Amount</th>
+                    <th class="py-2.5 px-3">Route</th>
+                    <th class="py-2.5 px-3">Settlement Status</th>
+                  </tr>
+                </thead>
+                <tbody id="stmtExpensesTbody" class="divide-y divide-slate-800/60"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Active Loans History -->
+        <div class="space-y-2.5">
+          <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="credit-card" class="w-3.5 h-3.5 text-indigo-400"></i> Loan & Advance Records
+          </h4>
+          <div id="stmtLoansContainer" class="space-y-2"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD / EDIT LOAN -->
+  <div id="loanModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl relative">
+      <button onclick="closeLoanModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+      <h3 id="loanModalTitle" class="text-base font-bold text-white flex items-center gap-2">
+        <i data-lucide="credit-card" class="w-5 h-5 text-indigo-400"></i> Issue Loan / Advance
+      </h3>
+      <form onsubmit="handleLoanSubmit(event)" class="space-y-3">
+        <input type="hidden" id="loanModalMode" value="add" />
+        <input type="hidden" id="loanModalId" />
+
+        <div>
+          <label class="text-xs font-medium text-slate-400 block mb-1">Staff Member</label>
+          <select id="loanStaffSelect" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+        </div>
+        <div>
+          <label class="text-xs font-medium text-slate-400 block mb-1">Purpose / Note</label>
+          <input type="text" id="loanDescription" required placeholder="e.g. Festival Advance, Medical expense" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-medium text-slate-400 block mb-1">Principal Amount (₹)</label>
+            <input type="number" id="loanAmount" required min="500" step="500" placeholder="10000" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="text-xs font-medium text-slate-400 block mb-1">Monthly EMI (₹)</label>
+            <input type="number" id="loanEmi" required min="0" step="100" placeholder="2000" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+        </div>
+        <div id="loanEditFields" class="grid grid-cols-2 gap-3 hidden">
+          <div>
+            <label class="text-xs font-medium text-slate-400 block mb-1">Total Repaid (₹)</label>
+            <input type="number" id="loanRepaidInput" min="0" step="100" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="text-xs font-medium text-slate-400 block mb-1">Status</label>
+            <select id="loanStatusSelect" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="Active">Active</option>
+              <option value="Closed">Closed (Settled)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center pt-2">
+          <button type="button" id="closeLoanQuickBtn" onclick="markLoanClosed()" class="text-xs text-emerald-400 hover:text-emerald-300 font-semibold hidden">
+            Mark Loan as Closed
+          </button>
+          <div class="flex gap-2 ml-auto">
+            <button type="button" onclick="closeLoanModal()" class="px-3 py-2 rounded-xl bg-slate-800 text-xs font-semibold text-slate-300">Cancel</button>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white shadow">Save Loan</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD / EDIT STAFF -->
+  <div id="staffModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl relative">
+      <button onclick="closeStaffModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+      <h3 id="staffModalTitle" class="text-base font-bold text-white flex items-center gap-2">
+        <i data-lucide="user-check" class="w-5 h-5 text-indigo-400"></i> Add Staff Member
+      </h3>
+      <form onsubmit="handleStaffSubmit(event)" class="space-y-3">
+        <input type="hidden" id="staffModalMode" value="add" />
+        <input type="hidden" id="staffModalId" />
+        
+        <div>
+          <label class="text-xs font-semibold text-slate-300 block mb-1">Full Name</label>
+          <input type="text" id="staffNameInput" required placeholder="e.g. Ramesh Kumar" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-semibold text-slate-300 block mb-1">Role</label>
+            <input type="text" id="staffRoleInput" required placeholder="e.g. Driver, Cook" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-300 block mb-1">Monthly Base Salary (₹)</label>
+            <input type="number" id="staffSalaryInput" required min="1000" step="500" placeholder="22000" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-300 block mb-1">UPI ID (VPA)</label>
+          <input type="text" id="staffVpaInput" required placeholder="name@okhdfcbank or 9820000000@paytm" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-semibold text-slate-300 block mb-1">Paid Leaves / Month</label>
+            <input type="number" id="staffLeavesInput" value="2" min="0" max="10" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-300 block mb-1">Status</label>
+            <select id="staffStatusInput" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="Active" selected>Active</option>
+              <option value="Inactive">Inactive / Left</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center pt-2">
+          <button type="button" id="deleteStaffBtn" onclick="deleteCurrentStaff()" class="text-xs text-rose-400 hover:text-rose-300 font-semibold hidden">
+            Deactivate Staff
+          </button>
+          <div class="flex gap-2 ml-auto">
+            <button type="button" onclick="closeStaffModal()" class="px-3 py-2 rounded-xl bg-slate-800 text-xs font-semibold text-slate-300">Cancel</button>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white shadow">Save to Sheet</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD EXPENSE -->
+  <div id="newExpenseModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl relative">
+      <button onclick="closeNewExpenseModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+      <h3 class="text-base font-bold text-white flex items-center gap-2">
+        <i data-lucide="receipt" class="w-5 h-5 text-indigo-400"></i> Log Ancillary Expense / Bill
+      </h3>
+      <form onsubmit="handleNewExpenseSubmit(event)" class="space-y-3">
+        <div>
+          <label class="text-xs font-medium text-slate-400 block mb-1">Staff Member</label>
+          <select id="expStaffSelect" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-medium text-slate-400 block mb-1">Category</label>
+            <select id="expCategory" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="Fuel">Fuel / Petrol</option>
+              <option value="Groceries">Groceries / Veg</option>
+              <option value="Car Wash">Car Wash / Maintenance</option>
+              <option value="Home Supplies">Home Supplies</option>
+              <option value="Medical">Medical</option>
+              <option value="Misc">Misc</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-slate-400 block mb-1">Amount (₹)</label>
+            <input type="number" id="expAmount" required min="1" placeholder="2450" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-medium text-slate-400 block mb-1">Description / Bill Note</label>
+          <input type="text" id="expNote" placeholder="e.g. Shell Petrol Pump full tank" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label class="text-xs font-medium text-slate-400 block mb-1">Settlement Route</label>
+          <select id="expRoute" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="Instant Payout">Instant Payout (Pay via UPI Now)</option>
+            <option value="Add to Monthly Salary">Add to Month-End Salary</option>
+          </select>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeNewExpenseModal()" class="px-3 py-2 rounded-xl bg-slate-800 text-xs font-semibold text-slate-300">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white shadow">Save Bill</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- UPI PAYMENT MODAL (DYNAMIC QR + DEEP LINK) -->
+  <div id="upiModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-sm w-full p-6 text-center space-y-5 shadow-2xl relative">
+      <button onclick="closeUpiModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+      
+      <div>
+        <span class="text-[10px] uppercase font-bold tracking-widest text-indigo-400">Instant UPI Transfer</span>
+        <h3 id="upiModalName" class="text-lg font-bold text-white mt-0.5">Staff Name</h3>
+        <p id="upiModalVpa" class="text-xs text-slate-400 font-mono">vpa@bank</p>
+      </div>
+
+      <div class="bg-white p-4 rounded-2xl inline-block shadow mx-auto">
+        <div id="qrcodeCanvas" class="w-[180px] h-[180px] flex items-center justify-center"></div>
+      </div>
+
+      <div class="bg-slate-950 rounded-2xl p-3 border border-slate-800">
+        <span class="text-xs text-slate-400">Amount to Transfer</span>
+        <div id="upiModalAmount" class="text-2xl font-black text-emerald-400">₹0</div>
+        <span id="upiModalNote" class="text-[11px] text-slate-400 block mt-0.5">Salary Aug-2026</span>
+      </div>
+
+      <div class="space-y-2">
+        <a id="upiDeepLinkBtn" href="#" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30">
+          <i data-lucide="smartphone" class="w-4 h-4"></i> Open in GPay / PhonePe / Paytm
+        </a>
+        <button onclick="confirmUpiPaymentSettled()" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition">
+          <i data-lucide="check" class="w-3.5 h-3.5"></i> Mark as Paid (Syncs to Google Sheets)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONFIG MODAL -->
+  <div id="configModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl relative">
+      <button onclick="closeConfigModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+      <h3 class="text-base font-bold text-white flex items-center gap-2">
+        <i data-lucide="settings" class="w-5 h-5 text-indigo-400"></i> Google Sheet Backend Sync
+      </h3>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Paste your Google Apps Script URL below to sync calculations, attendance, and instant UPI actions with your master Google Sheet.
+      </p>
+      <div>
+        <label class="text-xs font-semibold text-slate-300 block mb-1">Web App URL</label>
+        <input type="text" id="configScriptUrl" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono" />
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeConfigModal()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300">Cancel</button>
+        <button onclick="saveScriptConfig()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white shadow">Save & Connect</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT STATE ENGINE -->
+  <script>
+    let appState = {
+      scriptUrl: localStorage.getItem("staffpay_script_url") || "",
+      selectedMonth: "Aug-2026",
+      daysInMonth: 31,
+      staff: [
+        { staffId: "STF01", name: "Ramesh Kumar", role: "Driver", baseSalary: 22000, upiVpa: "ramesh@okhdfcbank", leavesAllowed: 2, status: "Active" },
+        { staffId: "STF02", name: "Sunita Devi", role: "Cook", baseSalary: 18000, upiVpa: "sunitadevi@paytm", leavesAllowed: 2, status: "Active" },
+        { staffId: "STF03", name: "Kamla Bai", role: "Housekeeping", baseSalary: 12000, upiVpa: "kamla@ybl", leavesAllowed: 2, status: "Active" }
+      ],
+      payroll: {
+        "Aug-2026": {
+          "STF01": { workedDays: 31, unpaidLeaves: 0, customDeduction: 0, mode: "UPI", status: "Pending", paidDate: "" },
+          "STF02": { workedDays: 31, unpaidLeaves: 1, customDeduction: 0, mode: "UPI", status: "Paid", paidDate: "2026-08-26" },
+          "STF03": { workedDays: 15, unpaidLeaves: 0, customDeduction: 500, mode: "Cash", status: "Pending", paidDate: "" }
+        },
+        "Jul-2026": {
+          "STF01": { workedDays: 31, unpaidLeaves: 0, customDeduction: 0, mode: "UPI", status: "Paid", paidDate: "2026-07-28" },
+          "STF02": { workedDays: 31, unpaidLeaves: 0, customDeduction: 0, mode: "UPI", status: "Paid", paidDate: "2026-07-28" },
+          "STF03": { workedDays: 31, unpaidLeaves: 0, customDeduction: 500, mode: "Cash", status: "Paid", paidDate: "2026-07-29" }
+        }
+      },
+      loans: [
+        { loanId: "LN101", staffId: "STF01", description: "Festival Advance", amountIssued: 10000, monthlyEmi: 2000, totalRepaid: 4000, status: "Active" },
+        { loanId: "LN102", staffId: "STF03", description: "Home Repair", amountIssued: 5000, monthlyEmi: 1000, totalRepaid: 2000, status: "Active" }
+      ],
+      expenses: [
+        { expenseId: "EXP01", date: "2026-08-14", staffId: "STF01", category: "Fuel", amount: 2450, note: "Shell Petrol Pump", route: "Instant Payout", status: "Settled", settledDate: "2026-08-14" },
+        { expenseId: "EXP02", date: "2026-08-20", staffId: "STF02", category: "Groceries", amount: 850, note: "Daily Veg & Dairy", route: "Add to Monthly Salary", status: "Pending", settledDate: "" },
+        { expenseId: "EXP03", date: "2026-08-25", staffId: "STF01", category: "Car Wash", amount: 400, note: "Deep clean", route: "Instant Payout", status: "Pending", settledDate: "" }
+      ]
+    };
+
+    let activeUpiTarget = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      loadLocalStorage();
+      lucide.createIcons();
+      renderAll();
+      if (appState.scriptUrl) {
+        syncWithGoogleSheet();
+      }
+    });
+
+    function loadLocalStorage() {
+      const cached = localStorage.getItem("staffpay_state_cache_v3");
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed.staff) appState.staff = parsed.staff;
+          if (parsed.payroll) appState.payroll = parsed.payroll;
+          if (parsed.loans) appState.loans = parsed.loans;
+          if (parsed.expenses) appState.expenses = parsed.expenses;
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+
+    function saveLocalStorage() {
+      localStorage.setItem("staffpay_state_cache_v3", JSON.stringify(appState));
+    }
+
+    function getDaysInMonth(monthYear) {
+      const parts = monthYear.split('-');
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const mIdx = monthNames.indexOf(parts[0]);
+      const year = parseInt(parts[1], 10) || 2026;
+      return new Date(year, mIdx + 1, 0).getDate();
+    }
+
+    function calculateNetPayable(staffId, month) {
+      const staffMember = appState.staff.find(s => s.staffId === staffId);
+      if (!staffMember) return 0;
+      
+      const pRecord = (appState.payroll[month] && appState.payroll[month][staffId]) || {
+        workedDays: appState.daysInMonth,
+        unpaidLeaves: 0,
+        customDeduction: 0
+      };
+
+      const baseSalary = Number(staffMember.baseSalary) || 0;
+      const daysInMonth = getDaysInMonth(month);
+      const workedDays = pRecord.workedDays !== undefined ? Number(pRecord.workedDays) : daysInMonth;
+      const unpaidLeaves = Number(pRecord.unpaidLeaves) || 0;
+      const customDeduction = Number(pRecord.customDeduction) || 0;
+
+      const activeLoan = appState.loans.find(l => l.staffId === staffId && l.status === "Active");
+      const loanEmi = activeLoan ? Number(activeLoan.monthlyEmi) : 0;
+
+      const pendingReimbursements = appState.expenses
+        .filter(e => e.staffId === staffId && e.route === "Add to Monthly Salary" && e.status === "Pending")
+        .reduce((sum, e) => sum + Number(e.amount), 0);
+
+      const proRataBase = (baseSalary / daysInMonth) * workedDays;
+      const leaveCut = (baseSalary / daysInMonth) * unpaidLeaves;
+      
+      const net = Math.round(proRataBase - leaveCut - loanEmi - customDeduction + pendingReimbursements);
+      return Math.max(0, net);
+    }
+
+    function renderAll() {
+      renderMetrics();
+      renderPayrollCards();
+      renderExpensesTable();
+      renderLoansCards();
+      renderStaffCards();
+      lucide.createIcons();
+    }
+
+    function renderMetrics() {
+      const currentMonth = appState.selectedMonth;
+      let totalCommitment = 0;
+      let paidTotal = 0;
+      let pendingTotal = 0;
+      let paidCount = 0;
+      let pendingCount = 0;
+
+      appState.staff.filter(s => s.status === "Active").forEach(s => {
+        const net = calculateNetPayable(s.staffId, currentMonth);
+        totalCommitment += net;
+        const pRecord = appState.payroll[currentMonth] && appState.payroll[currentMonth][s.staffId];
+        const status = pRecord ? pRecord.status : "Pending";
+        if (status === "Paid") {
+          paidTotal += net;
+          paidCount++;
+        } else {
+          pendingTotal += net;
+          pendingCount++;
+        }
+      });
+
+      const midMonthExpenses = appState.expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+
+      document.getElementById("metricTotal").innerText = `₹${totalCommitment.toLocaleString("en-IN")}`;
+      document.getElementById("metricStaffCount").innerText = `${appState.staff.filter(s=>s.status==="Active").length} Staff Active`;
+      document.getElementById("metricPaid").innerText = `₹${paidTotal.toLocaleString("en-IN")}`;
+      document.getElementById("metricPaidCount").innerText = `${paidCount} Settled`;
+      document.getElementById("metricPending").innerText = `₹${pendingTotal.toLocaleString("en-IN")}`;
+      document.getElementById("metricPendingCount").innerText = `${pendingCount} Pending`;
+      document.getElementById("metricExpenses").innerText = `₹${midMonthExpenses.toLocaleString("en-IN")}`;
+    }
+
+    function renderPayrollCards() {
+      const container = document.getElementById("payrollCardsContainer");
+      container.innerHTML = "";
+      const currentMonth = appState.selectedMonth;
+
+      appState.staff.filter(s => s.status === "Active").forEach(s => {
+        if (!appState.payroll[currentMonth]) appState.payroll[currentMonth] = {};
+        if (!appState.payroll[currentMonth][s.staffId]) {
+          appState.payroll[currentMonth][s.staffId] = {
+            workedDays: appState.daysInMonth,
+            unpaidLeaves: 0,
+            customDeduction: 0,
+            mode: "UPI",
+            status: "Pending",
+            paidDate: ""
+          };
+        }
+
+        const p = appState.payroll[currentMonth][s.staffId];
+        const activeLoan = appState.loans.find(l => l.staffId === s.staffId && l.status === "Active");
+        const loanEmi = activeLoan ? Number(activeLoan.monthlyEmi) : 0;
+        const reimb = appState.expenses
+          .filter(e => e.staffId === s.staffId && e.route === "Add to Monthly Salary" && e.status === "Pending")
+          .reduce((sum, e) => sum + Number(e.amount), 0);
+        
+        const net = calculateNetPayable(s.staffId, currentMonth);
+        const isPaid = p.status === "Paid";
+
+        const card = document.createElement("div");
+        card.className = `border rounded-3xl p-4 sm:p-5 transition-all shadow-sm ${isPaid ? "bg-slate-900/60 border-emerald-500/30" : "bg-slate-900 border-slate-800"}`;
+        
+        card.innerHTML = `
+          <div class="flex items-start justify-between">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="openStaffStatement('${s.staffId}')">
+              <div class="w-10 h-10 rounded-2xl ${isPaid ? "bg-emerald-500/10 text-emerald-400" : "bg-indigo-500/10 text-indigo-400"} flex items-center justify-center font-bold text-sm">
+                ${s.name.charAt(0)}
+              </div>
+              <div>
+                <h4 class="font-bold text-white text-sm sm:text-base flex items-center gap-2">
+                  ${s.name}
+                  <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">${s.role}</span>
+                </h4>
+                <p class="text-xs text-slate-400 font-mono">${s.upiVpa || "No UPI VPA"}</p>
+              </div>
+            </div>
+            <div>
+              <span class="text-xs font-semibold px-2.5 py-1 rounded-full ${isPaid ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-amber-500/20 text-amber-400 border border-amber-500/30"}">
+                ${p.status}
+              </span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] mt-4 p-3 bg-slate-950 rounded-2xl border border-slate-800/80">
+            <div>
+              <span class="text-slate-500 block">Base Salary</span>
+              <span class="font-semibold text-slate-200">₹${Number(s.baseSalary).toLocaleString("en-IN")}</span>
+            </div>
+            <div>
+              <span class="text-slate-500 block">Worked Days</span>
+              <input type="number" value="${p.workedDays}" min="0" max="${appState.daysInMonth}" onchange="updatePayrollInput('${s.staffId}', 'workedDays', this.value)" class="w-16 bg-slate-900 border border-slate-700 rounded-lg px-2 py-0.5 text-white font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+            </div>
+            <div>
+              <span class="text-slate-500 block">Unpaid Leaves</span>
+              <input type="number" value="${p.unpaidLeaves}" min="0" onchange="updatePayrollInput('${s.staffId}', 'unpaidLeaves', this.value)" class="w-16 bg-slate-900 border border-slate-700 rounded-lg px-2 py-0.5 text-white font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+            </div>
+            <div>
+              <span class="text-slate-500 block">Loan EMI Cut</span>
+              <span class="font-semibold text-rose-400">-₹${loanEmi.toLocaleString("en-IN")}</span>
+            </div>
+            <div>
+              <span class="text-slate-500 block">Custom Loan/Cut</span>
+              <input type="number" value="${p.customDeduction}" min="0" onchange="updatePayrollInput('${s.staffId}', 'customDeduction', this.value)" class="w-16 bg-slate-900 border border-slate-700 rounded-lg px-2 py-0.5 text-white font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+            </div>
+            <div>
+              <span class="text-slate-500 block">Reimbursements</span>
+              <span class="font-semibold text-emerald-400">+₹${reimb.toLocaleString("en-IN")}</span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between mt-4 pt-3 border-t border-slate-800">
+            <div>
+              <span class="text-[10px] text-slate-400 block uppercase font-medium">Net Payable</span>
+              <span class="text-lg font-black text-white">₹${net.toLocaleString("en-IN")}</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button onclick="togglePaymentStatus('${s.staffId}')" class="text-xs px-3 py-2 rounded-xl font-medium border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition">
+                ${isPaid ? "Mark Pending" : "Mark Paid"}
+              </button>
+              
+              <button onclick="openUpiPayModal('${s.staffId}', ${net})" class="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-md shadow-indigo-600/30">
+                <i data-lucide="zap" class="w-3.5 h-3.5"></i> Pay UPI
+              </button>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderExpensesTable() {
+      const tbody = document.getElementById("expensesTableBody");
+      tbody.innerHTML = "";
+
+      if (appState.expenses.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-500">No expenses logged yet</td></tr>`;
+        return;
+      }
+
+      appState.expenses.forEach(e => {
+        const staff = appState.staff.find(s => s.staffId === e.staffId);
+        const staffName = staff ? staff.name : e.staffId;
+        const isSettled = e.status === "Settled";
+
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-800/40 transition";
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-mono text-slate-400">${e.date}</td>
+          <td class="py-3 px-4 font-medium text-white cursor-pointer hover:text-indigo-400" onclick="openStaffStatement('${e.staffId}')">${staffName}</td>
+          <td class="py-3 px-4">
+            <span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 border border-slate-700 text-slate-300 font-medium mr-1.5">${e.category}</span>
+            <span class="text-slate-400">${e.note || "-"}</span>
+          </td>
+          <td class="py-3 px-4 font-bold text-white">₹${Number(e.amount).toLocaleString("en-IN")}</td>
+          <td class="py-3 px-4 text-slate-400">${e.route}</td>
+          <td class="py-3 px-4">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${isSettled ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}">
+              ${e.status}
+            </span>
+          </td>
+          <td class="py-3 px-4 text-right">
+            ${!isSettled && e.route === "Instant Payout" ? `
+              <button onclick="payInstantExpense('${e.expenseId}')" class="text-xs px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow">
+                Pay Now
+              </button>
+            ` : isSettled ? `<span class="text-xs text-slate-500">Settled (${e.settledDate || 'Done'})</span>` : `<span class="text-xs text-slate-500">In Payroll</span>`}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderLoansCards() {
+      const container = document.getElementById("loansContainer");
+      container.innerHTML = "";
+
+      appState.loans.forEach(l => {
+        const staff = appState.staff.find(s => s.staffId === l.staffId);
+        const outstanding = l.amountIssued - l.totalRepaid;
+        const isClosed = l.status === "Closed" || outstanding <= 0;
+        const progress = Math.min(100, Math.round((l.totalRepaid / l.amountIssued) * 100));
+
+        const card = document.createElement("div");
+        card.className = `border rounded-3xl p-4 shadow space-y-3 transition ${isClosed ? "bg-slate-900/60 border-slate-800 opacity-80" : "bg-slate-900 border-slate-800 hover:border-indigo-500/50"}`;
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="cursor-pointer" onclick="openStaffStatement('${l.staffId}')">
+              <h4 class="font-bold text-white text-sm hover:text-indigo-400">${staff ? staff.name : l.staffId}</h4>
+              <p class="text-xs text-slate-400">${l.description}</p>
+            </div>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${isClosed ? "bg-slate-800 text-slate-400" : "bg-indigo-500/20 text-indigo-400"}">${l.status}</span>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <span class="text-slate-500 block">Total Principal</span>
+              <span class="font-bold text-white">₹${Number(l.amountIssued).toLocaleString("en-IN")}</span>
+            </div>
+            <div>
+              <span class="text-slate-500 block">Monthly EMI</span>
+              <span class="font-bold text-amber-400">₹${Number(l.monthlyEmi).toLocaleString("en-IN")}/mo</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+              <span>Repaid: ₹${Number(l.totalRepaid).toLocaleString("en-IN")}</span>
+              <span class="font-semibold ${outstanding > 0 ? "text-rose-400" : "text-emerald-400"}">Due: ₹${Math.max(0, outstanding).toLocaleString("en-IN")}</span>
+            </div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div class="bg-indigo-500 h-full rounded-full" style="width: ${progress}%"></div>
+            </div>
+          </div>
+
+          <button onclick="editLoanModal('${l.loanId}')" class="w-full py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> Edit / Settle Loan
+          </button>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderStaffCards() {
+      const container = document.getElementById("staffContainer");
+      container.innerHTML = "";
+
+      appState.staff.forEach(s => {
+        const isAct = s.status === "Active";
+        const totalPaidYTD = calculateStaffTotalPaidYTD(s.staffId);
+        const card = document.createElement("div");
+        card.className = "bg-slate-900 border border-slate-800 rounded-3xl p-4 shadow space-y-3 relative";
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div>
+              <h4 class="font-bold text-white text-base">${s.name}</h4>
+              <p class="text-xs text-slate-400">${s.role}</p>
+            </div>
+            <span class="text-xs px-2 py-0.5 rounded-full ${isAct ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-800 text-slate-400"} font-semibold">
+              ${s.status}
+            </span>
+          </div>
+
+          <div class="bg-slate-950 p-3 rounded-2xl border border-slate-800/80 space-y-1.5 text-xs">
+            <div class="flex justify-between">
+              <span class="text-slate-500">Base Salary</span>
+              <span class="font-semibold text-white">₹${Number(s.baseSalary).toLocaleString("en-IN")}/mo</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">UPI ID (VPA)</span>
+              <span class="font-mono text-slate-300 text-[11px]">${s.upiVpa}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">Total Paid (YTD)</span>
+              <span class="font-bold text-emerald-400">₹${totalPaidYTD.toLocaleString("en-IN")}</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <button onclick="openStaffStatement('${s.staffId}')" class="py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition shadow">
+              <i data-lucide="file-text" class="w-3.5 h-3.5"></i> Full Statement
+            </button>
+            <button onclick="editStaffMember('${s.staffId}')" class="py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+              <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> Edit Profile
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function calculateStaffTotalPaidYTD(staffId) {
+      let total = 0;
+      Object.keys(appState.payroll).forEach(m => {
+        const p = appState.payroll[m][staffId];
+        if (p && p.status === "Paid") {
+          total += calculateNetPayable(staffId, m);
+        }
+      });
+      return total;
+    }
+
+    // --- INDIVIDUAL CONSOLIDATED STATEMENT MODAL ---
+    function openStaffStatement(staffId) {
+      const s = appState.staff.find(st => st.staffId === staffId);
+      if (!s) return;
+
+      document.getElementById("stmtAvatar").innerText = s.name.charAt(0);
+      document.getElementById("stmtName").innerText = s.name;
+      document.getElementById("stmtRole").innerText = s.role;
+      document.getElementById("stmtVpa").innerText = s.upiVpa;
+      document.getElementById("stmtBaseSal").innerText = `₹${Number(s.baseSalary).toLocaleString("en-IN")}`;
+
+      const isAct = s.status === "Active";
+      const statusBadge = document.getElementById("stmtStatusBadge");
+      statusBadge.innerText = s.status;
+      statusBadge.className = `text-[10px] font-semibold px-2 py-0.5 rounded-full ${isAct ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-800 text-slate-400"}`;
+
+      // 1. Calculate Summary Totals
+      const totalSalaryPaid = calculateStaffTotalPaidYTD(staffId);
+      document.getElementById("stmtTotalSalaryPaid").innerText = `₹${totalSalaryPaid.toLocaleString("en-IN")}`;
+
+      const totalReimb = appState.expenses
+        .filter(e => e.staffId === staffId)
+        .reduce((sum, e) => sum + Number(e.amount), 0);
+      document.getElementById("stmtTotalReimb").innerText = `₹${totalReimb.toLocaleString("en-IN")}`;
+
+      const totalLoanDue = appState.loans
+        .filter(l => l.staffId === staffId && l.status === "Active")
+        .reduce((sum, l) => sum + (Number(l.amountIssued) - Number(l.totalRepaid)), 0);
+      document.getElementById("stmtLoanDue").innerText = `₹${Math.max(0, totalLoanDue).toLocaleString("en-IN")}`;
+
+      // 2. Populate Month-by-Month Payroll
+      const payrollTbody = document.getElementById("stmtPayrollTbody");
+      payrollTbody.innerHTML = "";
+      const monthsList = Object.keys(appState.payroll);
+
+      if (monthsList.length === 0) {
+        payrollTbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-slate-500">No payroll history recorded</td></tr>`;
+      } else {
+        monthsList.forEach(m => {
+          const p = appState.payroll[m][staffId];
+          if (p) {
+            const net = calculateNetPayable(staffId, m);
+            const isP = p.status === "Paid";
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td class="py-2.5 px-3 font-semibold text-white">${m}</td>
+              <td class="py-2.5 px-3">${p.workedDays} days (${p.unpaidLeaves} unpaid)</td>
+              <td class="py-2.5 px-3 font-mono text-rose-400">-₹${(p.customDeduction || 0).toLocaleString("en-IN")}</td>
+              <td class="py-2.5 px-3 font-bold text-white">₹${net.toLocaleString("en-IN")}</td>
+              <td class="py-2.5 px-3 text-slate-400">${p.mode || "UPI"}</td>
+              <td class="py-2.5 px-3">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${isP ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}">
+                  ${p.status} ${p.paidDate ? `(${p.paidDate})` : ''}
+                </span>
+              </td>
+            `;
+            payrollTbody.appendChild(tr);
+          }
+        });
+      }
+
+      // 3. Populate Expenses Table
+      const expTbody = document.getElementById("stmtExpensesTbody");
+      expTbody.innerHTML = "";
+      const staffExpenses = appState.expenses.filter(e => e.staffId === staffId);
+
+      if (staffExpenses.length === 0) {
+        expTbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-slate-500">No ad-hoc bills logged for this staff</td></tr>`;
+      } else {
+        staffExpenses.forEach(e => {
+          const isSettled = e.status === "Settled";
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td class="py-2.5 px-3 font-mono text-slate-400">${e.date}</td>
+            <td class="py-2.5 px-3">
+              <span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-medium mr-1">${e.category}</span>
+              <span class="text-slate-300">${e.note || "-"}</span>
+            </td>
+            <td class="py-2.5 px-3 font-bold text-white">₹${Number(e.amount).toLocaleString("en-IN")}</td>
+            <td class="py-2.5 px-3 text-slate-400">${e.route}</td>
+            <td class="py-2.5 px-3">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${isSettled ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}">
+                ${e.status} ${e.settledDate ? `(${e.settledDate})` : ''}
+              </span>
+            </td>
+          `;
+          expTbody.appendChild(tr);
+        });
+      }
+
+      // 4. Populate Loans Cards
+      const loansContainer = document.getElementById("stmtLoansContainer");
+      loansContainer.innerHTML = "";
+      const staffLoans = appState.loans.filter(l => l.staffId === staffId);
+
+      if (staffLoans.length === 0) {
+        loansContainer.innerHTML = `<p class="text-xs text-slate-500 italic p-3 bg-slate-950 rounded-xl">No loan or advance records found.</p>`;
+      } else {
+        staffLoans.forEach(l => {
+          const out = l.amountIssued - l.totalRepaid;
+          const div = document.createElement("div");
+          div.className = "bg-slate-950 p-3 rounded-2xl border border-slate-800 flex items-center justify-between text-xs";
+          div.innerHTML = `
+            <div>
+              <span class="font-bold text-white">${l.description}</span>
+              <span class="text-slate-500 block text-[11px]">Principal: ₹${Number(l.amountIssued).toLocaleString("en-IN")} • EMI: ₹${Number(l.monthlyEmi).toLocaleString("en-IN")}/mo</span>
+            </div>
+            <div class="text-right">
+              <span class="font-bold ${out > 0 ? 'text-rose-400' : 'text-emerald-400'} block">Outstanding: ₹${Math.max(0, out).toLocaleString("en-IN")}</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">${l.status}</span>
+            </div>
+          `;
+          loansContainer.appendChild(div);
+        });
+      }
+
+      document.getElementById("statementModal").classList.remove("hidden");
+      lucide.createIcons();
+    }
+
+    function closeStatementModal() {
+      document.getElementById("statementModal").classList.add("hidden");
+    }
+
+    // --- LOAN ACTIONS (ADD / EDIT / CLOSE) ---
+    function openNewLoanModal() {
+      document.getElementById("loanModalTitle").innerHTML = `<i data-lucide="credit-card" class="w-5 h-5 text-indigo-400"></i> Issue Loan / Advance`;
+      document.getElementById("loanModalMode").value = "add";
+      document.getElementById("loanModalId").value = "LN" + Date.now().toString().slice(-4);
+      
+      const select = document.getElementById("loanStaffSelect");
+      select.innerHTML = "";
+      appState.staff.filter(s=>s.status==="Active").forEach(s => {
+        select.innerHTML += `<option value="${s.staffId}">${s.name} (${s.role})</option>`;
+      });
+
+      document.getElementById("loanDescription").value = "";
+      document.getElementById("loanAmount").value = "";
+      document.getElementById("loanEmi").value = "";
+      document.getElementById("loanEditFields").classList.add("hidden");
+      document.getElementById("closeLoanQuickBtn").classList.add("hidden");
+      document.getElementById("loanModal").classList.remove("hidden");
+      lucide.createIcons();
+    }
+
+    function editLoanModal(loanId) {
+      const l = appState.loans.find(ln => ln.loanId === loanId);
+      if (!l) return;
+
+      document.getElementById("loanModalTitle").innerHTML = `<i data-lucide="edit-3" class="w-5 h-5 text-indigo-400"></i> Edit / Settle Loan`;
+      document.getElementById("loanModalMode").value = "edit";
+      document.getElementById("loanModalId").value = l.loanId;
+      
+      const select = document.getElementById("loanStaffSelect");
+      select.innerHTML = "";
+      appState.staff.forEach(s => {
+        select.innerHTML += `<option value="${s.staffId}" ${s.staffId === l.staffId ? 'selected' : ''}>${s.name} (${s.role})</option>`;
+      });
+
+      document.getElementById("loanDescription").value = l.description;
+      document.getElementById("loanAmount").value = l.amountIssued;
+      document.getElementById("loanEmi").value = l.monthlyEmi;
+      document.getElementById("loanRepaidInput").value = l.totalRepaid || 0;
+      document.getElementById("loanStatusSelect").value = l.status || "Active";
+
+      document.getElementById("loanEditFields").classList.remove("hidden");
+      document.getElementById("closeLoanQuickBtn").classList.remove("hidden");
+      document.getElementById("loanModal").classList.remove("hidden");
+      lucide.createIcons();
+    }
+
+    function closeLoanModal() {
+      document.getElementById("loanModal").classList.add("hidden");
+    }
+
+    function handleLoanSubmit(e) {
+      e.preventDefault();
+      const mode = document.getElementById("loanModalMode").value;
+      const loanId = document.getElementById("loanModalId").value;
+      const staffId = document.getElementById("loanStaffSelect").value;
+      const description = document.getElementById("loanDescription").value;
+      const amountIssued = Number(document.getElementById("loanAmount").value);
+      const monthlyEmi = Number(document.getElementById("loanEmi").value);
+
+      if (mode === "add") {
+        const newLoan = {
+          loanId: loanId,
+          staffId: staffId,
+          description: description,
+          amountIssued: amountIssued,
+          monthlyEmi: monthlyEmi,
+          totalRepaid: 0,
+          status: "Active"
+        };
+        appState.loans.unshift(newLoan);
+        syncLoanRow(newLoan);
+      } else {
+        const totalRepaid = Number(document.getElementById("loanRepaidInput").value);
+        const status = document.getElementById("loanStatusSelect").value;
+        const idx = appState.loans.findIndex(ln => ln.loanId === loanId);
+        if (idx >= 0) {
+          appState.loans[idx] = {
+            loanId, staffId, description, amountIssued, monthlyEmi, totalRepaid, status
+          };
+          syncLoanRow(appState.loans[idx]);
+        }
+      }
+
+      saveLocalStorage();
+      closeLoanModal();
+      renderAll();
+    }
+
+    function markLoanClosed() {
+      const loanId = document.getElementById("loanModalId").value;
+      const l = appState.loans.find(ln => ln.loanId === loanId);
+      if (l) {
+        l.status = "Closed";
+        l.totalRepaid = l.amountIssued;
+        saveLocalStorage();
+        syncLoanRow(l);
+        closeLoanModal();
+        renderAll();
+      }
+    }
+
+    // --- STAFF PROFILE ACTIONS ---
+    function openNewStaffModal() {
+      document.getElementById("staffModalTitle").innerHTML = `<i data-lucide="user-plus" class="w-5 h-5 text-indigo-400"></i> Add Staff Member`;
+      document.getElementById("staffModalMode").value = "add";
+      document.getElementById("staffModalId").value = "STF0" + (appState.staff.length + 1);
+      document.getElementById("staffNameInput").value = "";
+      document.getElementById("staffRoleInput").value = "";
+      document.getElementById("staffSalaryInput").value = "";
+      document.getElementById("staffVpaInput").value = "";
+      document.getElementById("staffLeavesInput").value = 2;
+      document.getElementById("staffStatusInput").value = "Active";
+      document.getElementById("deleteStaffBtn").classList.add("hidden");
+      document.getElementById("staffModal").classList.remove("hidden");
+      lucide.createIcons();
+    }
+
+    function editStaffMember(staffId) {
+      const s = appState.staff.find(st => st.staffId === staffId);
+      if (!s) return;
+
+      document.getElementById("staffModalTitle").innerHTML = `<i data-lucide="edit-3" class="w-5 h-5 text-indigo-400"></i> Edit Staff Member`;
+      document.getElementById("staffModalMode").value = "edit";
+      document.getElementById("staffModalId").value = s.staffId;
+      document.getElementById("staffNameInput").value = s.name;
+      document.getElementById("staffRoleInput").value = s.role;
+      document.getElementById("staffSalaryInput").value = s.baseSalary;
+      document.getElementById("staffVpaInput").value = s.upiVpa;
+      document.getElementById("staffLeavesInput").value = s.leavesAllowed || 2;
+      document.getElementById("staffStatusInput").value = s.status || "Active";
+      document.getElementById("deleteStaffBtn").classList.remove("hidden");
+      document.getElementById("staffModal").classList.remove("hidden");
+      lucide.createIcons();
+    }
+
+    function closeStaffModal() {
+      document.getElementById("staffModal").classList.add("hidden");
+    }
+
+    function handleStaffSubmit(e) {
+      e.preventDefault();
+      const mode = document.getElementById("staffModalMode").value;
+      const staffId = document.getElementById("staffModalId").value;
+      const name = document.getElementById("staffNameInput").value.trim();
+      const role = document.getElementById("staffRoleInput").value.trim();
+      const baseSalary = Number(document.getElementById("staffSalaryInput").value);
+      const upiVpa = document.getElementById("staffVpaInput").value.trim();
+      const leavesAllowed = Number(document.getElementById("staffLeavesInput").value);
+      const status = document.getElementById("staffStatusInput").value;
+
+      const staffObj = { staffId, name, role, baseSalary, upiVpa, leavesAllowed, status };
+
+      if (mode === "add") {
+        appState.staff.push(staffObj);
+      } else {
+        const idx = appState.staff.findIndex(s => s.staffId === staffId);
+        if (idx >= 0) appState.staff[idx] = staffObj;
+      }
+
+      saveLocalStorage();
+      syncStaffRow(staffObj);
+      closeStaffModal();
+      renderAll();
+    }
+
+    function deleteCurrentStaff() {
+      const staffId = document.getElementById("staffModalId").value;
+      if (confirm("Are you sure you want to deactivate this staff member?")) {
+        const s = appState.staff.find(st => st.staffId === staffId);
+        if (s) {
+          s.status = "Inactive";
+          saveLocalStorage();
+          syncStaffRow(s);
+          closeStaffModal();
+          renderAll();
+        }
+      }
+    }
+
+    // --- PAYROLL & EXPENSES INTERACTIONS ---
+    function updatePayrollInput(staffId, field, value) {
+      const month = appState.selectedMonth;
+      if (!appState.payroll[month]) appState.payroll[month] = {};
+      if (!appState.payroll[month][staffId]) appState.payroll[month][staffId] = {};
+      appState.payroll[month][staffId][field] = Number(value);
+      saveLocalStorage();
+      renderAll();
+      syncSinglePayrollRow(staffId);
+    }
+
+    function togglePaymentStatus(staffId) {
+      const month = appState.selectedMonth;
+      const current = appState.payroll[month][staffId].status;
+      const next = current === "Paid" ? "Pending" : "Paid";
+      appState.payroll[month][staffId].status = next;
+      appState.payroll[month][staffId].paidDate = next === "Paid" ? new Date().toISOString().split('T')[0] : "";
+      
+      saveLocalStorage();
+      renderAll();
+      syncSinglePayrollRow(staffId);
+    }
+
+    function openUpiPayModal(staffId, amount) {
+      const staff = appState.staff.find(s => s.staffId === staffId);
+      if (!staff) return;
+
+      activeUpiTarget = { staffId, amount, type: "payroll" };
+      const note = `Salary ${appState.selectedMonth}`;
+      const upiUrl = `upi://pay?pa=${encodeURIComponent(staff.upiVpa)}&pn=${encodeURIComponent(staff.name)}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}`;
+
+      document.getElementById("upiModalName").innerText = staff.name;
+      document.getElementById("upiModalVpa").innerText = staff.upiVpa;
+      document.getElementById("upiModalAmount").innerText = `₹${amount.toLocaleString("en-IN")}`;
+      document.getElementById("upiModalNote").innerText = note;
+      document.getElementById("upiDeepLinkBtn").setAttribute("href", upiUrl);
+
+      const qrContainer = document.getElementById("qrcodeCanvas");
+      qrContainer.innerHTML = "";
+      new QRCode(qrContainer, {
+        text: upiUrl,
+        width: 180,
+        height: 180,
+        colorDark: "#020617",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+
+      document.getElementById("upiModal").classList.remove("hidden");
+    }
+
+    function payInstantExpense(expenseId) {
+      const exp = appState.expenses.find(e => e.expenseId === expenseId);
+      if (!exp) return;
+      const staff = appState.staff.find(s => s.staffId === exp.staffId);
+      if (!staff) return;
+
+      activeUpiTarget = { expenseId, amount: exp.amount, type: "expense" };
+      const note = `${exp.category} Reimbursement - ${exp.date}`;
+      const upiUrl = `upi://pay?pa=${encodeURIComponent(staff.upiVpa)}&pn=${encodeURIComponent(staff.name)}&am=${exp.amount}&cu=INR&tn=${encodeURIComponent(note)}`;
+
+      document.getElementById("upiModalName").innerText = staff.name;
+      document.getElementById("upiModalVpa").innerText = staff.upiVpa;
+      document.getElementById("upiModalAmount").innerText = `₹${Number(exp.amount).toLocaleString("en-IN")}`;
+      document.getElementById("upiModalNote").innerText = note;
+      document.getElementById("upiDeepLinkBtn").setAttribute("href", upiUrl);
+
+      const qrContainer = document.getElementById("qrcodeCanvas");
+      qrContainer.innerHTML = "";
+      new QRCode(qrContainer, {
+        text: upiUrl,
+        width: 180,
+        height: 180,
+        colorDark: "#020617",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+
+      document.getElementById("upiModal").classList.remove("hidden");
+    }
+
+    function confirmUpiPaymentSettled() {
+      if (!activeUpiTarget) return;
+
+      if (activeUpiTarget.type === "payroll") {
+        const month = appState.selectedMonth;
+        appState.payroll[month][activeUpiTarget.staffId].status = "Paid";
+        appState.payroll[month][activeUpiTarget.staffId].paidDate = new Date().toISOString().split('T')[0];
+        syncSinglePayrollRow(activeUpiTarget.staffId);
+      } else if (activeUpiTarget.type === "expense") {
+        const exp = appState.expenses.find(e => e.expenseId === activeUpiTarget.expenseId);
+        if (exp) {
+          exp.status = "Settled";
+          exp.settledDate = new Date().toISOString().split('T')[0];
+          syncExpenseRow(exp);
+        }
+      }
+
+      saveLocalStorage();
+      closeUpiModal();
+      renderAll();
+    }
+
+    function closeUpiModal() {
+      document.getElementById("upiModal").classList.add("hidden");
+      activeUpiTarget = null;
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
+      document.getElementById(`tab-${tabId}`).classList.remove("hidden");
+
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.classList.remove("bg-indigo-600", "text-white");
+        btn.classList.add("bg-slate-900", "text-slate-300");
+      });
+      document.getElementById(`tab-btn-${tabId}`).classList.add("bg-indigo-600", "text-white");
+      document.getElementById(`tab-btn-${tabId}`).classList.remove("bg-slate-900", "text-slate-300");
+    }
+
+    function onMonthChange() {
+      appState.selectedMonth = document.getElementById("selectedMonth").value;
+      appState.daysInMonth = getDaysInMonth(appState.selectedMonth);
+      document.getElementById("daysCountBadge").innerText = `(${appState.daysInMonth} Days)`;
+      renderAll();
+    }
+
+    // --- GOOGLE SHEETS API SYNC ---
+    async function syncWithGoogleSheet(showToast = false) {
+      if (!appState.scriptUrl) return;
+      const dot = document.getElementById("syncDot");
+      const text = document.getElementById("syncText");
+      
+      dot.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
+      text.innerText = "Syncing...";
+
+      try {
+        const res = await fetch(appState.scriptUrl);
+        const result = await res.json();
+        if (result.status === "success" && result.data) {
+          if (result.data.staff && result.data.staff.length > 0) appState.staff = result.data.staff;
+          if (result.data.loans && result.data.loans.length > 0) appState.loans = result.data.loans;
+          if (result.data.expenses && result.data.expenses.length > 0) appState.expenses = result.data.expenses;
+          
+          saveLocalStorage();
+          renderAll();
+          dot.className = "w-2 h-2 rounded-full bg-emerald-400";
+          text.innerText = "Cloud Synced";
+        }
+      } catch (e) {
+        console.warn(e);
+        dot.className = "w-2 h-2 rounded-full bg-rose-400";
+        text.innerText = "Offline Cache";
+      }
+    }
+
+    async function syncStaffRow(staffObj) {
+      if (!appState.scriptUrl) return;
+      try {
+        await fetch(appState.scriptUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "saveStaff", payload: staffObj })
+        });
+      } catch (e) { console.error(e); }
+    }
+
+    async function syncSinglePayrollRow(staffId) {
+      if (!appState.scriptUrl) return;
+      const month = appState.selectedMonth;
+      const p = appState.payroll[month][staffId];
+      const s = appState.staff.find(st => st.staffId === staffId);
+      const net = calculateNetPayable(staffId, month);
+
+      const payload = {
+        monthYear: month,
+        staffId: staffId,
+        baseSalary: s ? s.baseSalary : 0,
+        workedDays: p.workedDays,
+        unpaidLeaves: p.unpaidLeaves,
+        loanEmi: 0,
+        customDeduction: p.customDeduction,
+        reimbursements: 0,
+        netPayable: net,
+        mode: p.mode,
+        status: p.status,
+        paidDate: p.paidDate
+      };
+
+      try {
+        await fetch(appState.scriptUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "savePayrollRow", payload: payload })
+        });
+      } catch (e) { console.error(e); }
+    }
+
+    async function syncExpenseRow(expense) {
+      if (!appState.scriptUrl) return;
+      try {
+        await fetch(appState.scriptUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "addExpense", payload: expense })
+        });
+      } catch (e) { console.error(e); }
+    }
+
+    async function syncLoanRow(loan) {
+      if (!appState.scriptUrl) return;
+      try {
+        await fetch(appState.scriptUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "addLoan", payload: loan })
+        });
+      } catch (e) { console.error(e); }
+    }
+
+    // --- MODALS & FORMS ---
+    function openConfigModal() {
+      document.getElementById("configScriptUrl").value = appState.scriptUrl;
+      document.getElementById("configModal").classList.remove("hidden");
+    }
+
+    function closeConfigModal() {
+      document.getElementById("configModal").classList.add("hidden");
+    }
+
+    function saveScriptConfig() {
+      const url = document.getElementById("configScriptUrl").value.trim();
+      appState.scriptUrl = url;
+      localStorage.setItem("staffpay_script_url", url);
+      closeConfigModal();
+      syncWithGoogleSheet();
+    }
+
+    function openNewExpenseModal() {
+      const select = document.getElementById("expStaffSelect");
+      select.innerHTML = "";
+      appState.staff.filter(s=>s.status==="Active").forEach(s => {
+        select.innerHTML += `<option value="${s.staffId}">${s.name} (${s.role})</option>`;
+      });
+      document.getElementById("newExpenseModal").classList.remove("hidden");
+    }
+
+    function closeNewExpenseModal() {
+      document.getElementById("newExpenseModal").classList.add("hidden");
+    }
+
+    function handleNewExpenseSubmit(e) {
+      e.preventDefault();
+      const staffId = document.getElementById("expStaffSelect").value;
+      const category = document.getElementById("expCategory").value;
+      const amount = Number(document.getElementById("expAmount").value);
+      const note = document.getElementById("expNote").value;
+      const route = document.getElementById("expRoute").value;
+
+      const newExp = {
+        expenseId: "EXP" + Date.now().toString().slice(-4),
+        date: new Date().toISOString().split('T')[0],
+        staffId: staffId,
+        category: category,
+        amount: amount,
+        note: note,
+        route: route,
+        status: "Pending",
+        settledDate: ""
+      };
+
+      appState.expenses.unshift(newExp);
+      saveLocalStorage();
+      syncExpenseRow(newExp);
+      closeNewExpenseModal();
+      renderAll();
+    }
+  </script>
+</body>
+</html>
